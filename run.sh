@@ -1,0 +1,1 @@
+./myapp $CONFIG_PATH

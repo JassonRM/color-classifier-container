@@ -9,7 +9,6 @@
 #define PORT 8080
 
 int main() {
-    printf("Hello world!\n");
     char filename[] = "output/configuracion.config";
     printf("Path: %s\n", filename);
     FILE *input = fopen(filename, "r");
@@ -22,21 +21,11 @@ int main() {
             printf("%c", ch);
         fclose(input);
     }
-    char path[30];
-    time_t t;
-    srand((unsigned) time(&t));
-    int id = rand();
-    snprintf(path, sizeof path, "%s%d%s", "output/example", id, ".txt");
-    FILE *output = fopen(path, "w");
-    fprintf(output, "Testing");
-    fclose(output);
 
     int server_fd, new_socket, valread;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
-    char buffer[1024] = {0};
-    char *hello = "Hello from server";
 
     // Creating socket file descriptor
     if ((server_fd = socket(AF_INET, SOCK_STREAM, 0)) == 0) {
@@ -69,11 +58,30 @@ int main() {
         perror("accept");
         exit(EXIT_FAILURE);
     }
-    valread = read(new_socket, buffer, 1024);
-    printf("%s\n", buffer);
-    send(new_socket, hello, strlen(hello), 0);
-    printf("Hello message sent\n");
-    return 0;
 
+    // Open file for writing
+    char path[30];
+    time_t t;
+    srand((unsigned) time(&t));
+    int8_t id = rand();
+    snprintf(path, sizeof path, "%s%d%s", "output/image", id, ".png");
+    FILE *output = fopen(path, "wb");
+
+    // Write to file from socket
+    char buffer[1024] = {0};
+    printf("Start writing", NULL);
+    ssize_t bytes_read;
+    int i = 0;
+    while((bytes_read = read(new_socket, buffer, 1024)) > 0) {
+        printf("Still writing file %d\n Bytes Read: %d\n", i, bytes_read);
+        fwrite(buffer, sizeof(buffer), 1, output);
+        i++;
+    }
+    printf("Finished writing file %d\n Bytes Read: %d\n", i, bytes_read);
+    fclose(output);
+    printf("Server: File received\n");
+
+    char response[] = "Server: File received\n";
+    send(new_socket, response, strlen(response), 0);
     return 0;
 }

@@ -5,10 +5,27 @@
 #include <netinet/in.h>
 #include <unistd.h>
 #include <string.h>
+#include <png.h>
+#include "image.h"
+#include <sys/stat.h>
 
 #define PORT 8080
 
 int main() {
+    // Create required directories
+    int id = 1;
+    char output_dir[100];
+    snprintf(output_dir, sizeof output_dir, "%s%d", "output/", id);
+    mkdir(output_dir, 0777);
+    snprintf(output_dir, sizeof output_dir, "%s%d%s", "output/", id, "/R");
+    mkdir(output_dir, 0777);
+    snprintf(output_dir, sizeof output_dir, "%s%d%s", "output/", id, "/G");
+    mkdir(output_dir, 0777);
+    snprintf(output_dir, sizeof output_dir, "%s%d%s", "output/", id, "/B");
+    mkdir(output_dir, 0777);
+    snprintf(output_dir, sizeof output_dir, "%s%d%s", "output/", id, "/Not trusted");
+    mkdir(output_dir, 0777);
+
     char filename[] = "output/configuracion.config";
     printf("Path: %s\n", filename);
     FILE *input = fopen(filename, "r");
@@ -22,7 +39,7 @@ int main() {
         fclose(input);
     }
 
-    int server_fd, new_socket, valread;
+    int server_fd, new_socket;
     struct sockaddr_in address;
     int opt = 1;
     int addrlen = sizeof(address);
@@ -59,29 +76,45 @@ int main() {
         exit(EXIT_FAILURE);
     }
 
-    // Open file for writing
-    char path[30];
-    time_t t;
-    srand((unsigned) time(&t));
-    int8_t id = rand();
-    snprintf(path, sizeof path, "%s%d%s", "output/image", id, ".png");
-    FILE *output = fopen(path, "wb");
+    // Saved received file in memory
+    char *mem_buffer;
+    size_t file_size;
+    FILE *image = open_memstream(&mem_buffer, &file_size);
 
-    // Write to file from socket
-    char buffer[1024] = {0};
-    printf("Start writing", NULL);
-    ssize_t bytes_read;
-    int i = 0;
-    while((bytes_read = read(new_socket, buffer, 1024)) > 0) {
-        printf("Still writing file %d\n Bytes Read: %d\n", i, bytes_read);
-        fwrite(buffer, sizeof(buffer), 1, output);
-        i++;
+    // Read from socket
+    char socket_buffer[1024];
+    ssize_t bytes_read, totalBytes;
+    read(new_socket, filename, 30);
+    while((bytes_read = read(new_socket, socket_buffer, 1024)) > 0) {
+        totalBytes += bytes_read;
+        fwrite(socket_buffer, bytes_read, 1, image);
     }
-    printf("Finished writing file %d\n Bytes Read: %d\n", i, bytes_read);
-    fclose(output);
-    printf("Server: File received\n");
+    printf("Total bytes read: %ld bytes\n", totalBytes);
 
-    char response[] = "Server: File received\n";
-    send(new_socket, response, strlen(response), 0);
+    // Classify file
+    read_png_file(image);
+    int result = process_png_file();
+    printf("Result: %d\n", result);
+    // Open file for writing
+    char path[100];
+    char *folder;
+    switch (result) {
+        case 0:
+            folder = "R";
+            break;
+        case 1:
+            folder = "G";
+            break;
+        case 2:
+            folder = "B";
+            break;
+        default: folder = "Not trusted";
+    }
+    snprintf(path, sizeof path, "%s%d%s%s%s%s", "output/", id, "/", folder, "/", filename);
+    printf("Path: %s\n", path);
+    FILE *output = fopen(path, "wb");
+    fwrite(mem_buffer, file_size, 1, output);
+    fclose(output);
     return 0;
 }
+

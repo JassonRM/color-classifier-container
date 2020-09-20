@@ -51,7 +51,7 @@ void read_png_file(FILE *fp) {
 
     png_read_update_info(png, info);
 
-    if (row_pointers) abort();
+    if (row_pointers) free(row_pointers);
 
     row_pointers = (png_bytep *) malloc(sizeof(png_bytep) * height);
     for (int y = 0; y < height; y++) {
@@ -76,11 +76,11 @@ int process_png_file() {
             b += px[2];
         }
     }
-    if(r > g & r > b){
+    if (r > g & r > b) {
         return 0;
-    }else if(g > b){
+    } else if (g > b) {
         return 1;
-    }else{
+    } else {
         return 2;
     }
 }

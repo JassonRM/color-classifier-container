@@ -11,7 +11,7 @@
 
 #define PORT 8080
 
-void read_config_file(char trusted[][15], char accepted[][15]){
+void read_config_file(char trusted[][15], char accepted[][15]) {
     char filename[] = "output/configuracion.config";
     printf("Path: %s\n", filename);
     FILE *input = fopen(filename, "r");
@@ -54,7 +54,7 @@ void read_config_file(char trusted[][15], char accepted[][15]){
     }
 }
 
-void read_socket_into_file(int socket, FILE *file){
+void read_socket_into_file(int socket, FILE *file) {
     // Read from socket
     char socket_buffer[1024];
     ssize_t bytes_read, totalBytes = 0;
@@ -117,73 +117,75 @@ int main() {
         perror("listen");
         exit(EXIT_FAILURE);
     }
-    if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
-                             (socklen_t *) &addrlen)) < 0) {
-        perror("accept");
-        exit(EXIT_FAILURE);
-    }
 
-    char *ip_address = inet_ntoa(address.sin_addr);
-    printf("IP address is: %s\n", ip_address);
-    bool ip_found = false;
-
-    for(int i = 0; trusted[i][0] != '\0'; i++){
-        if(strcmp(trusted[i], ip_address) == 0){
-            // Saved received file in memory
-            char *mem_buffer;
-            size_t file_size;
-            FILE *image = open_memstream(&mem_buffer, &file_size);
-            char filename[30];
-            read(new_socket, filename, 30);
-            read_socket_into_file(new_socket, image);
-            printf("Filename: %s\n", filename);
-
-            // Classify file
-            read_png_file(image);
-            int result = process_png_file();
-            // Open file for writing
-            char path[100];
-            char *folder;
-            switch (result) {
-                case 0:
-                    folder = "R";
-                    break;
-                case 1:
-                    folder = "G";
-                    break;
-                case 2:
-                    folder = "B";
-                    break;
-                default:
-                    printf("Error");
-                    return -1;
-            }
-            printf("Result: %s\n", folder);
-            snprintf(path, sizeof path, "%s%d%s%s%s%s", "output/", id, "/", folder, "/", filename);
-            printf("Path: %s\n", path);
-            FILE *output = fopen(path, "wb");
-            fwrite(mem_buffer, file_size, 1, output);
-            fclose(output);
-            ip_found = true;
-            break;
+    while (1) {
+        if ((new_socket = accept(server_fd, (struct sockaddr *) &address,
+                                 (socklen_t *) &addrlen)) < 0) {
+            perror("accept");
+            exit(EXIT_FAILURE);
         }
-    }
-    if(!ip_found) {
-        for (int i = 0; accepted[i][0] != '\0'; i++) {
-            if (strcmp(accepted[i], ip_address) == 0) {
-                char path[100];
+
+        char *ip_address = inet_ntoa(address.sin_addr);
+        printf("IP address is: %s\n", ip_address);
+        bool ip_found = false;
+
+        for (int i = 0; trusted[i][0] != '\0'; i++) {
+            if (strcmp(trusted[i], ip_address) == 0) {
+                // Saved received file in memory
+                char *mem_buffer;
+                size_t file_size;
+                FILE *image = open_memstream(&mem_buffer, &file_size);
                 char filename[30];
                 read(new_socket, filename, 30);
-                snprintf(path, sizeof path, "%s%d%s%s", "output/", id, "/Not trusted/", filename);
+                read_socket_into_file(new_socket, image);
+                printf("Filename: %s\n", filename);
+
+                // Classify file
+                read_png_file(image);
+                int result = process_png_file();
+                // Open file for writing
+                char path[100];
+                char *folder;
+                switch (result) {
+                    case 0:
+                        folder = "R";
+                        break;
+                    case 1:
+                        folder = "G";
+                        break;
+                    case 2:
+                        folder = "B";
+                        break;
+                    default:
+                        printf("Error");
+                        return -1;
+                }
+                printf("Result: %s\n", folder);
+                snprintf(path, sizeof path, "%s%d%s%s%s%s", "output/", id, "/", folder, "/", filename);
                 printf("Path: %s\n", path);
                 FILE *output = fopen(path, "wb");
-                read_socket_into_file(new_socket, output);
+                fwrite(mem_buffer, file_size, 1, output);
                 fclose(output);
+                ip_found = true;
                 break;
             }
         }
+        if (!ip_found) {
+            for (int i = 0; accepted[i][0] != '\0'; i++) {
+                if (strcmp(accepted[i], ip_address) == 0) {
+                    char path[100];
+                    char filename[30];
+                    read(new_socket, filename, 30);
+                    snprintf(path, sizeof path, "%s%d%s%s", "output/", id, "/Not trusted/", filename);
+                    printf("Path: %s\n", path);
+                    FILE *output = fopen(path, "wb");
+                    read_socket_into_file(new_socket, output);
+                    fclose(output);
+                    break;
+                }
+            }
+        }
+        close(new_socket);
+        printf("Connection closed\n");
     }
-    close(new_socket);
-    printf("Connection closed\n");
-    return 0;
 }

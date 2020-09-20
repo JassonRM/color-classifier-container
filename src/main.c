@@ -67,7 +67,7 @@ void read_socket_into_file(int socket, FILE *file) {
 
 int main() {
     // Create required directories
-    int id = 1;
+    int id = (int) time(NULL);
     char output_dir[100];
     snprintf(output_dir, sizeof output_dir, "%s%d", "output/", id);
     mkdir(output_dir, 0777);

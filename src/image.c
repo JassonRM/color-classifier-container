@@ -66,7 +66,7 @@ void read_png_file(FILE *fp) {
 }
 
 int process_png_file() {
-    long r = 0, g = 0, b = 8;
+    long r = 0, g = 0, b = 0;
     for (int y = 0; y < height; y++) {
         png_bytep row = row_pointers[y];
         for (int x = 0; x < width; x++) {
